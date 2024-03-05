@@ -193,12 +193,30 @@ def get_ph_and_cond_at_elution(df, data_dict):
     """
     ml_pH_col = data_dict['pH'][0]
     ml_cond_col = data_dict['Conductivity'][0]
+    log_col = data_dict['Run Log'][1]
     ml_log_col = data_dict['Run Log'][0]
+
     # print('elu')
     elution_ph_index = df[ml_pH_col][round(df[ml_pH_col]) == round(df[ml_log_col][4])].index[1]
     elution_cond_index = df[ml_cond_col][round(df[ml_cond_col]) == round(df[ml_log_col][4])].index[1]
     elution_ph = round(df['pH'][elution_ph_index], 2)
     elution_cond = round(df['mS/cm'][elution_cond_index], 2)
+
+    if 'Elution' in df[log_col].values:
+        elution_idx = df.index[df[log_col] == 'Elution'].tolist()[-1]
+        wash_ph_index = df[ml_pH_col][round(df[ml_pH_col]) == round(df[ml_log_col][elution_idx])].index[1]
+        wash_cond_index = df[ml_cond_col][round(df[ml_cond_col]) == round(df[ml_log_col][elution_idx])].index[1]
+        elution_ph = round(df['pH'][wash_ph_index], 2)
+        elution_cond = round(df['mS/cm'][wash_cond_index], 2)
+    elif 'Elution 1' in df[log_col].values:
+        elution_idx = df.index[df[log_col] == 'Elution 1'].tolist()[-1]
+        wash_ph_index = df[ml_pH_col][round(df[ml_pH_col]) == round(df[ml_log_col][elution_idx])].index[1]
+        wash_cond_index = df[ml_cond_col][round(df[ml_cond_col]) == round(df[ml_log_col][elution_idx])].index[1]
+        elution_ph = round(df['pH'][wash_ph_index], 2)
+        elution_cond = round(df['mS/cm'][wash_cond_index], 2)
+    else:
+        elution_ph = None
+        elution_cond = None
     return elution_ph, elution_cond
 
 def get_ph_and_cond_at_wash(df, data_dict):
@@ -213,12 +231,25 @@ def get_ph_and_cond_at_wash(df, data_dict):
     """
     ml_pH_col = data_dict['pH'][0]
     ml_cond_col = data_dict['Conductivity'][0]
+    log_col = data_dict['Run Log'][1]
     ml_log_col = data_dict['Run Log'][0]
+
     # print('wash')
-    wash_ph_index = df[ml_pH_col][round(df[ml_pH_col ]) == round(df[ml_log_col][3])].index[1]
-    wash_cond_index = df[ml_cond_col][round(df[ml_cond_col]) == round(df[ml_log_col][3])].index[1]
-    wash_ph = round(df['pH'][wash_ph_index], 2)
-    wash_cond = round(df['mS/cm'][wash_cond_index], 2)
+    if 'Column Wash' in df[log_col].values:
+        column_wash_idx = df.index[df[log_col] == 'Column Wash'].tolist()[-1]
+        wash_ph_index = df[ml_pH_col][round(df[ml_pH_col]) == round(df[ml_log_col][column_wash_idx])].index[1]
+        wash_cond_index = df[ml_cond_col][round(df[ml_cond_col]) == round(df[ml_log_col][column_wash_idx])].index[1]
+        wash_ph = round(df['pH'][wash_ph_index], 2)
+        wash_cond = round(df['mS/cm'][wash_cond_index], 2)
+    elif 'Column Wash 1' in df[log_col].values:
+        column_wash_idx = df.index[df['Logbook'] == 'Column Wash 1'].tolist()[-1]
+        wash_ph_index = df[ml_pH_col][round(df[ml_pH_col]) == round(df[ml_log_col][column_wash_idx])].index[1]
+        wash_cond_index = df[ml_cond_col][round(df[ml_cond_col]) == round(df[ml_log_col][column_wash_idx])].index[1]
+        wash_ph = round(df['pH'][wash_ph_index], 2)
+        wash_cond = round(df['mS/cm'][wash_cond_index], 2)
+    else:
+        wash_ph = None
+        wash_cond = None
     return wash_ph, wash_cond
 
 def get_ph_and_cond_at_equilibration(df, data_dict):
@@ -234,11 +265,19 @@ def get_ph_and_cond_at_equilibration(df, data_dict):
     ml_pH_col = data_dict['pH'][0]
     ml_cond_col = data_dict['Conductivity'][0]
     ml_log_col = data_dict['Run Log'][0]
-    # print('eqil')
-    equilibration_ph_index = df[ml_pH_col][round(df[ml_pH_col ]) == round(df[ml_log_col][1])].index[1]
-    equilibration_cond_index = df[ml_cond_col][round(df[ml_cond_col]) == round(df[ml_log_col][1])].index[1]
-    equilibration_ph = round(df['pH'][equilibration_ph_index], 2)
-    equilibration_cond = round(df['pH'][equilibration_cond_index], 2)
+    log_col = data_dict['Run Log'][1]
+    ml_log_col = data_dict['Run Log'][0]
+
+    if 'Equilibration' in df[log_col].values:
+        column_equilibration_idx = df.index[df[log_col] == 'Equilibration'].tolist()[-1]
+        equilibration_ph_index = df[ml_pH_col][round(df[ml_pH_col]) == round(df[ml_log_col][column_equilibration_idx])].index[1]
+        equilibration_cond_index = df[ml_cond_col][round(df[ml_cond_col]) == round(df[ml_log_col][column_equilibration_idx])].index[1]
+        equilibration_ph = round(df['pH'][equilibration_ph_index], 2)
+        equilibration_cond = round(df['mS/cm'][equilibration_cond_index], 2)
+    else:
+        equilibration_ph = None
+        equilibration_cond = None
+
     return equilibration_ph, equilibration_cond
 
 def get_sample_volume(df, data_dict):
@@ -251,5 +290,22 @@ def get_sample_volume(df, data_dict):
         sample_volume: sample volume
     """
     ml_log_col = data_dict['Run Log'][0]
-    sample_volume = df[ml_log_col][4] - df[ml_log_col][3]
+    log_col = data_dict['Run Log'][1]
+
+    if 'Column Wash' in df[log_col].values:
+        column_wash_idx = df.index[df[log_col] == 'Column Wash'].tolist()[-1]
+    elif 'Column Wash 1' in df[log_col].values:
+        column_wash_idx = df.index[df[log_col] == 'Column Wash 1'].tolist()[-1]
+    else:   
+        column_wash_idx = None
+
+    if 'Sample Application' in df[log_col].values:
+        sample_application_idx = df.index[df[log_col] == 'Sample Application'].tolist()[-1]
+    else:
+        sample_application_idx = None
+    
+    if column_wash_idx is not None and sample_application_idx is not None:
+        sample_volume = df[ml_log_col][column_wash_idx] - df[ml_log_col][sample_application_idx]
+    else:
+        sample_volume = None
     return sample_volume

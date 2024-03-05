@@ -39,3 +39,9 @@ def area(volume, peaks, results, height):
         area = (retention_volume * H) / denominator
         res.append(area)
     return res
+
+def peak_height(peaks, height):
+    res = []
+    for i in range(len(peaks)):
+        res.append(height[i])
+    return res
