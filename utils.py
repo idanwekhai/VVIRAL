@@ -58,7 +58,7 @@ def load_useful_data(data):
                 'UV_260': [get_col_name_from_index(data, ml_uv_260), get_col_name_from_index(data, uv_260)], 
                 'Conductivity': [get_col_name_from_index(data, ml_conductivity), get_col_name_from_index(data, conductivity)], 
                 'Sample Flow': [get_col_name_from_index(data, ml_sample_flow), get_col_name_from_index(data, sample_flow)], 
-                'System_flow': [get_col_name_from_index(data, ml_system_flow), get_col_name_from_index(data, system_flow)], 
+                'System Flow': [get_col_name_from_index(data, ml_system_flow), get_col_name_from_index(data, system_flow)], 
                 'Sample Pressure': [get_col_name_from_index(data, ml_sample_pressure), get_col_name_from_index(data, sample_pressure)], 
                 'System Pressure': [get_col_name_from_index(data, ml_system_pressure), get_col_name_from_index(data, system_pressure)],
                 'Run Log': [get_col_name_from_index(data, ml_run_log), get_col_name_from_index(data, run_log)]}
@@ -279,6 +279,96 @@ def get_ph_and_cond_at_equilibration(df, data_dict):
         equilibration_cond = None
 
     return equilibration_ph, equilibration_cond
+
+def get_sample_and_sytem_flow_rate_at_wash(df, data_dict):
+    """
+    This function takes in a dataframe and a dictionary with useful data and returns the sample and system flow rate at wash.
+    Args:
+        df: dataframe
+        data_dict: dictionary with useful data
+    Returns:
+        sample_flow: sample flow rate at wash
+        system_flow: system flow rate at wash
+    """
+    ml_sample_flow_col = data_dict['Sample Flow'][0]
+    ml_system_flow_col = data_dict['System Flow'][0]
+    ml_log_col = data_dict['Run Log'][0]
+    log_col = data_dict['Run Log'][1]
+
+    if 'Column Wash' in df[log_col].values:
+        column_wash_idx = df.index[df[log_col] == 'Column Wash'].tolist()[-1]
+    elif 'Column Wash 1' in df[log_col].values:
+        column_wash_idx = df.index[df[log_col] == 'Column Wash 1'].tolist()[-1]
+    else:
+        column_wash_idx = None
+
+    if column_wash_idx is not None:
+        system_wash_index = df[ml_system_flow_col][round(df[ml_system_flow_col]) == round(df[ml_log_col][column_wash_idx])].index[1]
+        sample_wash_index = df[ml_sample_flow_col][round(df[ml_sample_flow_col]) == round(df[ml_log_col][column_wash_idx])].index[1]
+        sample_flow = round(df[ml_sample_flow_col][system_wash_index], 2)
+        system_flow = round(df[ml_system_flow_col][sample_wash_index ], 2)
+    else:
+        sample_flow = None
+        system_flow = None
+    return sample_flow, system_flow
+
+def get_sample_and_sytem_flow_rate_at_elution(df, data_dict):
+    """
+    This function takes in a dataframe and a dictionary with useful data and returns the sample and system flow rate at elution.
+    Args:
+        df: dataframe
+        data_dict: dictionary with useful data
+    Returns:
+        sample_flow: sample flow rate at elution
+        system_flow: system flow rate at elution
+    """
+    ml_sample_flow_col = data_dict['Sample Flow'][0]
+    ml_system_flow_col = data_dict['System Flow'][0]
+    ml_log_col = data_dict['Run Log'][0]
+    log_col = data_dict['Run Log'][1]
+
+    if 'Elution' in df[log_col].values:
+        elution_idx = df.index[df[log_col] == 'Elution'].tolist()[-1]
+        system_elution_index = df[ml_system_flow_col][round(df[ml_system_flow_col]) == round(df[ml_log_col][elution_idx])].index[1]
+        sample_elution_index = df[ml_sample_flow_col][round(df[ml_sample_flow_col]) == round(df[ml_log_col][elution_idx])].index[1]
+        sample_flow = round(df[ml_sample_flow_col][system_elution_index], 2)
+        system_flow = round(df[ml_system_flow_col][sample_elution_index ], 2)
+    elif 'Elution 1' in df[log_col].values:
+        elution_idx = df.index[df[log_col] == 'Elution 1'].tolist()[-1]
+        system_elution_index = df[ml_system_flow_col][round(df[ml_system_flow_col]) == round(df[ml_log_col][elution_idx])].index[1]
+        sample_elution_index = df[ml_sample_flow_col][round(df[ml_sample_flow_col]) == round(df[ml_log_col][elution_idx])].index[1]
+        sample_flow = round(df[ml_sample_flow_col][system_elution_index], 2)
+        system_flow = round(df[ml_system_flow_col][sample_elution_index ], 2)
+    else:
+        sample_flow = None
+        system_flow = None
+    return sample_flow, system_flow
+
+def get_sample_and_sytem_flow_rate_at_equilibration(df, data_dict):
+    """
+    This function takes in a dataframe and a dictionary with useful data and returns the sample and system flow rate at equilibration.
+    Args:
+        df: dataframe
+        data_dict: dictionary with useful data
+    Returns:
+        sample_flow: sample flow rate at equilibration
+        system_flow: system flow rate at equilibration
+    """
+    ml_sample_flow_col = data_dict['Sample Flow'][0]
+    ml_system_flow_col = data_dict['System Flow'][0]
+    ml_log_col = data_dict['Run Log'][0]
+    log_col = data_dict['Run Log'][1]
+
+    if 'Equilibration' in df[log_col].values:
+        equilibration_idx = df.index[df[log_col] == 'Equilibration'].tolist()[-1]
+        system_equilibration_index = df[ml_system_flow_col][round(df[ml_system_flow_col]) == round(df[ml_log_col][equilibration_idx])].index[1]
+        sample_equilibration_index = df[ml_sample_flow_col][round(df[ml_sample_flow_col]) == round(df[ml_log_col][equilibration_idx])].index[1]
+        sample_flow = round(df[ml_sample_flow_col][system_equilibration_index], 2)
+        system_flow = round(df[ml_system_flow_col][sample_equilibration_index ], 2)
+    else:
+        sample_flow = None
+        system_flow = None
+    return sample_flow, system_flow
 
 def get_sample_volume(df, data_dict):
     """
