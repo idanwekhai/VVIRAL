@@ -399,3 +399,55 @@ def get_sample_volume(df, data_dict):
     else:
         sample_volume = None
     return sample_volume
+
+
+def get_start_stop_idx(dataframe):
+    two_elutions = False
+    try:
+        log_vals = dataframe['Logbook'].values
+    
+        if 'Elution' in log_vals:
+            elution_idx = dataframe.index[dataframe['Logbook'] == 'Elution'].tolist()[-1]
+        elif 'Elution 1' in log_vals:
+            elution_idx = dataframe.index[dataframe['Logbook'] == 'Elution 1'].tolist()[-1]
+            two_elutions = True
+        else:
+            elution_idx = None
+        
+        if 'Column Wash' in dataframe['Logbook'].values:
+            column_wash_idx = dataframe.index[dataframe['Logbook'] == 'Column Wash'].tolist()[-1]
+        elif 'Column Wash 1' in dataframe['Logbook'].values:
+            column_wash_idx = dataframe.index[dataframe['Logbook'] == 'Column Wash 2'].tolist()[-1]
+        else:
+            column_wash_idx = None
+
+        if 'Column CIP' in dataframe['Logbook'].values:
+            stop_idx = dataframe.index[dataframe['Logbook'] == 'Column CIP'].tolist()[-1]
+        else:
+            stop_idx = None
+    except:
+        start_idx = None
+        stop_idx = None
+        
+    if elution_idx != None:
+        start_idx = elution_idx
+    else:
+        start_idx = column_wash_idx
+    return start_idx, stop_idx, two_elutions
+
+
+def query_line(volume, results):
+    row_0 = [i for i in results[0]]
+    row_1 = [volume[round(i)] for i in results[1]]
+    row_2 = [volume[round(i)] for i in results[2]]
+    return [row_0, row_1, row_2]
+
+def show_peaks(name, uv_280, volume, peaks, half_width, contour_heights):
+    plt.rcParams["figure.figsize"] = (20,10)
+    plt.plot(volume, uv_280)
+    plt.plot(volume[peaks], uv_280[peaks], "x")
+    plt.hlines(y=0, xmin=min(volume), xmax=max(volume), linestyle="dashed", color="gray" )
+    plt.hlines(*half_width, color="C2")
+    plt.vlines(x=volume[peaks], ymin=contour_heights, ymax=uv_280[peaks])
+    plt.savefig(f'inspect_plots/{name}.png')
+    plt.clf()
