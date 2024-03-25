@@ -1,4 +1,5 @@
 import math
+import numpy as np
 
 def tailing_factor(peaks, results):
     res = []
@@ -41,7 +42,34 @@ def area(volume, peaks, results, height):
     return res
 
 def peak_height(peaks, height):
+    """
+    Returns the height of the peaks
+    Args:
+    peaks: list of integers
+    height: list of floats
+    
+    Returns:
+    res: list of floats
+    """
     res = []
     for i in range(len(peaks)):
         res.append(height[i])
+    return res
+
+def integrate_peak(peaks, info, data):
+    """
+    Returns the integrated area of the peaks
+    Args:
+    peaks: list of integers
+    info: list of floats
+    
+    Returns:
+    res: list of floats
+    """
+    res = []
+    for i in range(len(peaks)):
+        lower = info['left_bases'][i]
+        upper = info['right_bases'][i]
+        integrated_area = np.trapz(data[lower:upper])
+        res.append(integrated_area)
     return res
