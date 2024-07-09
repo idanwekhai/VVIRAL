@@ -1,5 +1,7 @@
 import os
 import re
+
+import numpy as np
 import matplotlib.pyplot as plt
 
 
@@ -43,6 +45,7 @@ def load_useful_data(data):
     system_pressure = list(data.columns).index('MPa.1')
     # run_log = list(data.columns).index('Logbook')
     run_log = list(data.columns).index('Fraction.2')
+    injection = list(data.columns).index('Fraction.1')
 
     ml_pH = pH - 1
     ml_uv_280 = uv_280 - 1
@@ -53,6 +56,7 @@ def load_useful_data(data):
     ml_sample_pressure = sample_pressure - 1
     ml_system_pressure = system_pressure - 1
     ml_run_log = run_log - 1
+    ml_injection = injection - 1
 
     data_dict = {'pH': [get_col_name_from_index(data, ml_pH), get_col_name_from_index(data, pH)],
                 'UV_280': [get_col_name_from_index(data, ml_uv_280), get_col_name_from_index(data, uv_280)], 
@@ -62,25 +66,48 @@ def load_useful_data(data):
                 'System Flow': [get_col_name_from_index(data, ml_system_flow), get_col_name_from_index(data, system_flow)], 
                 'Sample Pressure': [get_col_name_from_index(data, ml_sample_pressure), get_col_name_from_index(data, sample_pressure)], 
                 'System Pressure': [get_col_name_from_index(data, ml_system_pressure), get_col_name_from_index(data, system_pressure)],
-                'Run Log': [get_col_name_from_index(data, ml_run_log), get_col_name_from_index(data, run_log)]}
+                'Run Log': [get_col_name_from_index(data, ml_run_log), get_col_name_from_index(data, run_log)],
+                'Injection': [get_col_name_from_index(data, ml_injection), get_col_name_from_index(data, injection)]}
     return data_dict
 
-def get_resin_and_serotype(name):
+def get_chrom_id(df, data_dict):
     """
-    This function takes in a name and returns the resin used and serotype of AAV.
+    This function takes in a dataframe and a dictionary with useful data and returns the chromatography id.
     Args:
-        name: name of the file
+        df: dataframe
+        data_dict: dictionary with useful data
     Returns:
-        resin: resin used
-        serotype: serotype of AAV
+        chrom_id: chromatography id
     """
-    resin = re.findall(r'AAV[A-Z]\d+', name)
-    serotype = re.findall(r'AAV*\d+', name)
-    if len(resin) == 0:
-        resin = 'Unknown'
-    if len(serotype) == 0:
-        serotype = 'Unknown'
-    return resin[0], serotype[0]
+    ml_injection = data_dict['Injection'][0]
+    injection = data_dict["Injection"][1]
+    vals = df[injection].values
+    if 'ChromID' in vals:
+        # chrom_id = df[ml_injection].values[-1]
+        idx = df.index[df[injection] == 'ChromID']
+        chrom_id = df[ml_injection].loc[idx].values[0]
+    else:
+        chrom_id = None
+    return chrom_id
+
+def get_column_volume(df, data_dict):
+    """
+    This function takes in a dataframe and a dictionary with useful data and returns the column volume.
+    Args:
+        df: dataframe
+        data_dict: dictionary with useful data
+    Returns:
+        column_volume: columne_volume
+    """
+    ml_injection = data_dict['Injection'][0]
+    injection = data_dict["Injection"][1]
+    vals = df[injection].values
+    if 'ColumnVolume (ml)' in vals:
+        idx = df.index[df[injection] == 'ColumnVolume (ml)']
+        column_volume = df[ml_injection].loc[idx].values[0]
+    else:
+        column_volume = None
+    return column_volume
 
 def get_resin(name):
     """
@@ -111,6 +138,20 @@ def get_serotype(name):
     if len(serotype) == 0:
         serotype = 'Unknown'
     return serotype[0]
+
+def get_resin_and_serotype(name):
+    """
+    This function takes in a name and returns the resin used and serotype of AAV.
+    Args:
+        name: name of the file
+    Returns:
+        resin: resin used
+        serotype: serotype of AAV
+    """
+    resin = get_resin(name)
+    serotype = get_serotype(name)
+
+    return resin, serotype
 
 def get_column_volume(name):
     """
@@ -181,6 +222,17 @@ def plot_data(data, folder, name, data_dict, columns=['UV_280', 'Conductivity'])
     fig.savefig(f'{folder}/plots/{name}.png')
     fig.clf()
     fig.clear()
+
+def get_useful_log_idx(data):
+    log_name = []
+    useful_log_idx = []
+    for i in range(len(data)):
+        if type(data['Fraction.2'].values[i]) == str:
+            if data['Fraction.2'].values[i][:5] == "Phase":
+                j = data['Fraction.2'].values[i]
+                log_name.append(re.search(r'Phase (.*?) \(Issued\)', j).group(1))
+                useful_log_idx.append(i)
+    return log_name, useful_log_idx
     
 def get_ph_and_cond_at_elution(df, data_dict):
     """
@@ -194,27 +246,24 @@ def get_ph_and_cond_at_elution(df, data_dict):
     """
     ml_pH_col = data_dict['pH'][0]
     ml_cond_col = data_dict['Conductivity'][0]
-    log_col = data_dict['Run Log'][1]
     ml_log_col = data_dict['Run Log'][0]
 
-    # print('elu')
-    elution_ph_index = df[ml_pH_col][round(df[ml_pH_col]) == round(df[ml_log_col][4])].index[1]
-    elution_cond_index = df[ml_cond_col][round(df[ml_cond_col]) == round(df[ml_log_col][4])].index[1]
-    elution_ph = round(df['pH'][elution_ph_index], 2)
-    elution_cond = round(df['mS/cm'][elution_cond_index], 2)
+    run_log, useful_log_idx = get_useful_log_idx(df)
 
-    if 'Elution' in df[log_col].values:
-        elution_idx = df.index[df[log_col] == 'Elution'].tolist()[-1]
-        wash_ph_index = df[ml_pH_col][round(df[ml_pH_col]) == round(df[ml_log_col][elution_idx])].index[1]
-        wash_cond_index = df[ml_cond_col][round(df[ml_cond_col]) == round(df[ml_log_col][elution_idx])].index[1]
-        elution_ph = round(df['pH'][wash_ph_index], 2)
-        elution_cond = round(df['mS/cm'][wash_cond_index], 2)
-    elif 'Elution 1' in df[log_col].values:
-        elution_idx = df.index[df[log_col] == 'Elution 1'].tolist()[-1]
-        wash_ph_index = df[ml_pH_col][round(df[ml_pH_col]) == round(df[ml_log_col][elution_idx])].index[1]
-        wash_cond_index = df[ml_cond_col][round(df[ml_cond_col]) == round(df[ml_log_col][elution_idx])].index[1]
-        elution_ph = round(df['pH'][wash_ph_index], 2)
-        elution_cond = round(df['mS/cm'][wash_cond_index], 2)
+    if 'Elution' in run_log:
+        elution_idx = useful_log_idx[run_log.index('Elution')]
+        elution_ml = df[ml_log_col][elution_idx]
+        elution_ph_idx = np.searchsorted(df[ml_pH_col], elution_ml, side="left")
+        elution_cond_idx = np.searchsorted(df[ml_cond_col], elution_ml, side="left")
+        elution_ph = round(df['pH'][elution_ph_idx], 2)
+        elution_cond = round(df['mS/cm'][elution_cond_idx], 2)
+    elif 'Elution 1' in run_log:
+        elution_idx = useful_log_idx[run_log.index('Elution 1')]
+        elution_ml = df[ml_log_col][elution_idx]
+        elution_ph_idx = np.searchsorted(ml_pH_col, elution_ml, side="left")
+        elution_cond_idx = np.searchsorted(ml_cond_col, elution_ml, side="left")
+        elution_ph = round(df['pH'][elution_ph_idx], 2)
+        elution_cond = round(df['mS/cm'][elution_cond_idx], 2)
     else:
         elution_ph = None
         elution_cond = None
@@ -232,20 +281,23 @@ def get_ph_and_cond_at_wash(df, data_dict):
     """
     ml_pH_col = data_dict['pH'][0]
     ml_cond_col = data_dict['Conductivity'][0]
-    log_col = data_dict['Run Log'][1]
     ml_log_col = data_dict['Run Log'][0]
 
+    run_log, useful_log_idx = get_useful_log_idx(df)
+
     # print('wash')
-    if 'Column Wash' in df[log_col].values:
-        column_wash_idx = df.index[df[log_col] == 'Column Wash'].tolist()[-1]
-        wash_ph_index = df[ml_pH_col][round(df[ml_pH_col]) == round(df[ml_log_col][column_wash_idx])].index[1]
-        wash_cond_index = df[ml_cond_col][round(df[ml_cond_col]) == round(df[ml_log_col][column_wash_idx])].index[1]
+    if 'Column Wash' in run_log:
+        column_wash_idx = useful_log_idx[run_log.index('Column Wash')]
+        column_wash_ml = df[ml_log_col][column_wash_idx]
+        wash_ph_index = np.searchsorted(df[ml_pH_col], column_wash_ml, side="left")
+        wash_cond_index = np.searchsorted(df[ml_cond_col], column_wash_ml, side="left")
         wash_ph = round(df['pH'][wash_ph_index], 2)
         wash_cond = round(df['mS/cm'][wash_cond_index], 2)
-    elif 'Column Wash 1' in df[log_col].values:
-        column_wash_idx = df.index[df['Logbook'] == 'Column Wash 1'].tolist()[-1]
-        wash_ph_index = df[ml_pH_col][round(df[ml_pH_col]) == round(df[ml_log_col][column_wash_idx])].index[1]
-        wash_cond_index = df[ml_cond_col][round(df[ml_cond_col]) == round(df[ml_log_col][column_wash_idx])].index[1]
+    elif 'Column Wash 1' in run_log:
+        column_wash_idx = useful_log_idx[run_log.index('Column Wash 1')]
+        column_wash_ml = df[ml_log_col][column_wash_idx]
+        wash_ph_index = np.searchsorted(df[ml_pH_col], column_wash_ml, side="left")
+        wash_cond_index = np.searchsorted(df[ml_cond_col], column_wash_ml, side="left")
         wash_ph = round(df['pH'][wash_ph_index], 2)
         wash_cond = round(df['mS/cm'][wash_cond_index], 2)
     else:
@@ -266,13 +318,14 @@ def get_ph_and_cond_at_equilibration(df, data_dict):
     ml_pH_col = data_dict['pH'][0]
     ml_cond_col = data_dict['Conductivity'][0]
     ml_log_col = data_dict['Run Log'][0]
-    log_col = data_dict['Run Log'][1]
-    ml_log_col = data_dict['Run Log'][0]
 
-    if 'Equilibration' in df[log_col].values:
-        column_equilibration_idx = df.index[df[log_col] == 'Equilibration'].tolist()[-1]
-        equilibration_ph_index = df[ml_pH_col][round(df[ml_pH_col]) == round(df[ml_log_col][column_equilibration_idx])].index[1]
-        equilibration_cond_index = df[ml_cond_col][round(df[ml_cond_col]) == round(df[ml_log_col][column_equilibration_idx])].index[1]
+    run_log, useful_log_idx = get_useful_log_idx(df)
+
+    if 'Equilibration' in run_log:
+        column_equilibration_idx = useful_log_idx[run_log.index('Equilibration')]
+        column_equilibration_ml = df[ml_log_col][column_equilibration_idx]
+        equilibration_ph_index = np.searchsorted(df[ml_pH_col], column_equilibration_ml, side="left")
+        equilibration_cond_index = np.searchsorted(df[ml_cond_col], column_equilibration_ml, side="left")
         equilibration_ph = round(df['pH'][equilibration_ph_index], 2)
         equilibration_cond = round(df['mS/cm'][equilibration_cond_index], 2)
     else:
@@ -294,20 +347,23 @@ def get_sample_and_sytem_flow_rate_at_wash(df, data_dict):
     ml_sample_flow_col = data_dict['Sample Flow'][0]
     ml_system_flow_col = data_dict['System Flow'][0]
     ml_log_col = data_dict['Run Log'][0]
-    log_col = data_dict['Run Log'][1]
+    
+    run_log, useful_log_idx = get_useful_log_idx(df)
 
-    if 'Column Wash' in df[log_col].values:
-        column_wash_idx = df.index[df[log_col] == 'Column Wash'].tolist()[-1]
-    elif 'Column Wash 1' in df[log_col].values:
-        column_wash_idx = df.index[df[log_col] == 'Column Wash 1'].tolist()[-1]
+    if 'Column Wash' in run_log:
+        column_wash_idx = useful_log_idx[run_log.index('Column Wash')]
+    elif 'Column Wash 1' in run_log:
+        column_wash_idx = useful_log_idx[run_log.index('Column Wash 1')]
     else:
         column_wash_idx = None
 
+
     if column_wash_idx is not None:
-        system_wash_index = df[ml_system_flow_col][round(df[ml_system_flow_col]) == round(df[ml_log_col][column_wash_idx])].index[1]
-        sample_wash_index = df[ml_sample_flow_col][round(df[ml_sample_flow_col]) == round(df[ml_log_col][column_wash_idx])].index[1]
-        sample_flow = round(df[ml_sample_flow_col][system_wash_index], 2)
-        system_flow = round(df[ml_system_flow_col][sample_wash_index ], 2)
+        column_wash_ml = df[ml_log_col][column_wash_idx]
+        sample_wash_index = np.searchsorted(df[ml_sample_flow_col], column_wash_ml, side="left")
+        system_wash_index = np.searchsorted(df[ml_system_flow_col], column_wash_ml, side="left")
+        sample_flow = round(df[ml_sample_flow_col][sample_wash_index], 2)
+        system_flow = round(df[ml_system_flow_col][system_wash_index ], 2)
     else:
         sample_flow = None
         system_flow = None
@@ -326,20 +382,23 @@ def get_sample_and_sytem_flow_rate_at_elution(df, data_dict):
     ml_sample_flow_col = data_dict['Sample Flow'][0]
     ml_system_flow_col = data_dict['System Flow'][0]
     ml_log_col = data_dict['Run Log'][0]
-    log_col = data_dict['Run Log'][1]
 
-    if 'Elution' in df[log_col].values:
-        elution_idx = df.index[df[log_col] == 'Elution'].tolist()[-1]
-        system_elution_index = df[ml_system_flow_col][round(df[ml_system_flow_col]) == round(df[ml_log_col][elution_idx])].index[1]
-        sample_elution_index = df[ml_sample_flow_col][round(df[ml_sample_flow_col]) == round(df[ml_log_col][elution_idx])].index[1]
-        sample_flow = round(df[ml_sample_flow_col][system_elution_index], 2)
-        system_flow = round(df[ml_system_flow_col][sample_elution_index ], 2)
-    elif 'Elution 1' in df[log_col].values:
-        elution_idx = df.index[df[log_col] == 'Elution 1'].tolist()[-1]
-        system_elution_index = df[ml_system_flow_col][round(df[ml_system_flow_col]) == round(df[ml_log_col][elution_idx])].index[1]
-        sample_elution_index = df[ml_sample_flow_col][round(df[ml_sample_flow_col]) == round(df[ml_log_col][elution_idx])].index[1]
-        sample_flow = round(df[ml_sample_flow_col][system_elution_index], 2)
-        system_flow = round(df[ml_system_flow_col][sample_elution_index ], 2)
+    run_log, useful_log_idx = get_useful_log_idx(df)
+
+    if 'Elution' in run_log:
+        elution_idx = useful_log_idx[run_log.index('Elution')]
+        elution_ml = df[ml_log_col][elution_idx]
+        system_elution_index = np.searchsorted(df[ml_system_flow_col], elution_ml, side="left")
+        sample_elution_index = np.searchsorted(df[ml_sample_flow_col], elution_ml, side="left")
+        sample_flow = round(df[ml_sample_flow_col][sample_elution_index], 2)
+        system_flow = round(df[ml_system_flow_col][system_elution_index ], 2)
+    elif 'Elution 1' in run_log:
+        elution_idx = useful_log_idx[run_log.index('Elution 1')]
+        elution_ml = df[ml_log_col][elution_idx]
+        system_elution_index = np.searchsorted(df[ml_system_flow_col], elution_ml, side="left")
+        sample_elution_index = np.searchsorted(df[ml_sample_flow_col], elution_ml, side="left")
+        sample_flow = round(df[ml_sample_flow_col][sample_elution_index], 2)
+        system_flow = round(df[ml_system_flow_col][system_elution_index ], 2)
     else:
         sample_flow = None
         system_flow = None
@@ -358,14 +417,16 @@ def get_sample_and_sytem_flow_rate_at_equilibration(df, data_dict):
     ml_sample_flow_col = data_dict['Sample Flow'][0]
     ml_system_flow_col = data_dict['System Flow'][0]
     ml_log_col = data_dict['Run Log'][0]
-    log_col = data_dict['Run Log'][1]
 
-    if 'Equilibration' in df[log_col].values:
-        equilibration_idx = df.index[df[log_col] == 'Equilibration'].tolist()[-1]
-        system_equilibration_index = df[ml_system_flow_col][round(df[ml_system_flow_col]) == round(df[ml_log_col][equilibration_idx])].index[1]
-        sample_equilibration_index = df[ml_sample_flow_col][round(df[ml_sample_flow_col]) == round(df[ml_log_col][equilibration_idx])].index[1]
-        sample_flow = round(df[ml_sample_flow_col][system_equilibration_index], 2)
-        system_flow = round(df[ml_system_flow_col][sample_equilibration_index ], 2)
+    run_log, useful_log_idx = get_useful_log_idx(df)
+
+    if 'Equilibration' in run_log:
+        equilibration_idx = useful_log_idx[run_log.index('Equilibration')]
+        equilibration_ml = df[ml_log_col][equilibration_idx]
+        system_equilibration_index = np.searchsorted(df[ml_system_flow_col], equilibration_ml, side="left")
+        sample_equilibration_index = np.searchsorted(df[ml_sample_flow_col], equilibration_ml, side="left")
+        sample_flow = round(df[ml_sample_flow_col][sample_equilibration_index], 2)
+        system_flow = round(df[ml_system_flow_col][system_equilibration_index], 2)
     else:
         sample_flow = None
         system_flow = None
@@ -381,17 +442,18 @@ def get_sample_volume(df, data_dict):
         sample_volume: sample volume
     """
     ml_log_col = data_dict['Run Log'][0]
-    log_col = data_dict['Run Log'][1]
 
-    if 'Column Wash' in df[log_col].values:
-        column_wash_idx = df.index[df[log_col] == 'Column Wash'].tolist()[-1]
-    elif 'Column Wash 1' in df[log_col].values:
-        column_wash_idx = df.index[df[log_col] == 'Column Wash 1'].tolist()[-1]
+    run_log, useful_log_idx = get_useful_log_idx(df)
+
+    if 'Column Wash' in run_log:
+        column_wash_idx = useful_log_idx[run_log.index('Column Wash')]
+    elif 'Column Wash 1' in run_log:
+        column_wash_idx = useful_log_idx[run_log.index('Column Wash 1')]
     else:   
         column_wash_idx = None
 
-    if 'Sample Application' in df[log_col].values:
-        sample_application_idx = df.index[df[log_col] == 'Sample Application'].tolist()[-1]
+    if 'Sample Application' in run_log:
+        sample_application_idx = useful_log_idx[run_log.index('Sample Application')]
     else:
         sample_application_idx = None
     

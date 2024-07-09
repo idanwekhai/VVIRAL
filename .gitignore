@@ -1,4 +1,5 @@
 *.csv
+*.CSV
 *.zip
 *.png
 *.txt
@@ -7,7 +8,18 @@
 *.ipynb
 *.xlsx
 *.html
-
+*.Result
+*.UFol
+*.Method
+*.MethodQueue
+*.pyc
+*.DoE
+Archives/
+data_dump/
+imgs/
+inspect_plots/
+outputs/
+SEC Data/
 
 Peak_experiment copy.ipynb
 Peak_experiment.ipynb
