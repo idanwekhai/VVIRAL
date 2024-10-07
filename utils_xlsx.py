@@ -90,7 +90,7 @@ def get_chrom_id(df, data_dict):
         chrom_id = None
     return chrom_id
 
-def get_column_volume(df, data_dict):
+def get_column_volume_xlsx(df, data_dict):
     """
     This function takes in a dataframe and a dictionary with useful data and returns the column volume.
     Args:
