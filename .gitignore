@@ -1,6 +1,7 @@
 *.csv
 *.CSV
 *.zip
+*.json
 *.png
 *.txt
 *.arw
@@ -20,6 +21,8 @@ imgs/
 inspect_plots/
 outputs/
 SEC Data/
+pycorn-bin_1.py
+flow_try.py
 
 Peak_experiment copy.ipynb
 Peak_experiment.ipynb
