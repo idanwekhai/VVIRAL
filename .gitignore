@@ -15,6 +15,7 @@
 *.MethodQueue
 *.pyc
 *.DoE
+__pycache__/
 Archives/
 data_dump/
 imgs/
