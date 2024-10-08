@@ -77,3 +77,19 @@ def plot_ystats(Y, x_text_pos, y_text_pos, text_str):
     text_str = f"Mean: {mean}\nSTD: {std}\nMax: {max}\nMin: {min}\nCount: {count}"
     sns.histplot(Y['y_log'])
     plt.text(x_text_pos, y_text_pos, text_str, fontsize=12, ha='center')
+
+def print_ystats(array, array_name):
+    """
+    Print the statistics of the input array
+
+    Parameters
+    ----------
+    y_array : np.array
+        input array
+
+    Returns
+    -------
+    None
+    """
+    print(f'{array_name} statistics: \n')
+    print(f'Min : {np.min(array)} Max : {np.max(array)}, Mean {np.mean(array)}, STD: {np.std(array)}')
