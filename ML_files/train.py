@@ -1,0 +1,59 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.preprocessing import FunctionTransformer
+
+from utils import log_transform, inverse_log_transform
+from models import train_gp_model, gp_predict, get_metrics
+
+X = pd.read_csv('../outputs/collation_4_30_24/master_collection.csv')
+Y = pd.read_csv('../outputs/collation_4_30_24/yields.csv')
+
+numeric = ['Elution pH', 'Wash pH', 'Equlibration pH', 'Elution Conductivity',
+       'Wash Conductivity', 'Equilibration Conductivity', 'Sample Volume (mL)',
+       'System Flowrate Elution (CV/h)', 'Sample Flowrate Elution (CV/h)']
+
+X = X.groupby(['Pure','resin', 'serotype'])[numeric].mean().reset_index()
+
+new_df = pd.merge(X, Y, on=['resin', 'serotype', 'Pure'])
+new_df = pd.get_dummies(new_df, columns=['serotype', 'from', 'resin'])
+new_df.reset_index(inplace=True, drop=True)
+new_df['y_log'] = log_transform(new_df['total'])
+
+X = new_df.drop(['total', 'Sample Volume (mL)', 'y_log'], axis=1)
+Y = new_df[['total', 'y_log']]
+
+x_train, x_test, y_train, y_test = train_test_split(X, Y['y_log'], test_size=0.2, random_state=42, shuffle=True)
+x_train_total, x_test_total, y_train_total, y_test_total = train_test_split(X, Y['total'], test_size=0.2, random_state=42, shuffle=True)
+
+scaled_experiment = False
+
+scaler = MinMaxScaler()
+y_train_scaled = scaler.fit_transform(y_train.values.reshape(-1, 1))
+y_test_scaled = scaler.transform(y_test.values.reshape(-1, 1))
+
+if scaled_experiment:
+    print('Scaled Experiment')
+    gaussian_process = train_gp_model(x_train, y_train_scaled)
+    mean_prediction, std_prediction = gp_predict(gaussian_process, x_test)
+    print('Scaled Experiment - metrics with scaled')
+    test_metrics_scaled = get_metrics(y_test_scaled, mean_prediction)
+    print(f'Min : {np.min(y_train_scaled)} Max : {np.max(y_train_scaled)}, Mean {np.mean(y_train_scaled)}, STD: {np.std(y_train_scaled)}')
+    print(f'Min : {np.min(y_test_scaled)} Max : {np.max(y_test_scaled)}, Mean {np.mean(y_test_scaled)}, STD: {np.std(y_test_scaled)}')
+    print('Scaled Experiment - metrics with actual log scale')
+    change_to_actual = scaler.inverse_transform(mean_prediction.reshape(1, -1))
+    test_metrics_scaled_inverse = get_metrics(y_test.values, change_to_actual.reshape(y_test.values.shape))
+    print(f'Min : {np.min(y_train)} Max : {np.max(y_train)}, Mean {np.mean(y_train)}, STD: {np.std(y_train)}')
+    print(f'Min : {np.min(y_test)} Max : {np.max(y_test)}, Mean {np.mean(y_test)}, STD: {np.std(y_test)}')
+else:
+    print('Normal Experiment')
+    gaussian_process = train_gp_model(x_train, y_train)
+    mean_prediction, std_prediction = gp_predict(gaussian_process, x_test)
+    test_metrics_unscaled = get_metrics(y_test, mean_prediction)
+    print('Unscaled Experiment - metrics with actual')
+    change_to_actual = inverse_log_transform(mean_prediction)
+    get_metrics(y_test_total.values, change_to_actual.reshape(y_test_total.values.shape))
+    print(f'Min : {np.min(y_train)} Max : {np.max(y_train)}, Mean {np.mean(y_train)}, STD: {np.std(y_train)}')
+    print(f'Min : {np.min(y_train_total)} Max : {np.max(y_train_total)}, Mean {np.mean(y_train_total)}, STD: {np.std(y_train_total)}')
