@@ -8,7 +8,7 @@ from sklearn.gaussian_process.kernels import RBF
 from sklearn.gaussian_process.kernels import *
 from baybe.searchspace import SearchSpace
 from baybe.targets import NumericalTarget
-from baybe.objectives import SingleTargetObjective
+from baybe.objectives import SingleTargetObjective, DesirabilityObjective
 from baybe.searchspace import SearchSpace
 
 from baybe.parameters import (
@@ -27,13 +27,27 @@ from baybe import Campaign
 from surrogate_model import gp_model
 
 
-target = NumericalTarget(
+
+target_1 = NumericalTarget(
     name="Total Capsids",
     mode="MAX",
+    bounds=(0,1),
 )
-objective = SingleTargetObjective(target=target)
 
+target_2 = NumericalTarget(
+    name="Purity",
+    mode="MAX",
+    bounds=(0, 1),
+)
 
+targets = [target_1, target_2]
+
+# objective = SingleTargetObjective(target=target)
+objective = DesirabilityObjective(
+    targets=targets,
+    weights=[60, 40], #figure out good weights
+    scalarizer="MEAN",
+)
 parameters = [
     NumericalDiscreteParameter(
         name="Pure",
@@ -134,11 +148,22 @@ campaign = Campaign(searchspace, objective, recommender)
 df = campaign.recommend(batch_size=10)
 
 
-# Other Utils to save the campaign
+
+
+
+# To save the campaign
 
 # campaign_json = campaign.to_json()
-# with open('AAV2_AAVA3_campaign.json', 'w', encoding='utf-8') as f:
+# with open('AAV9_AAVA3_campaign.json', 'w', encoding='utf-8') as f:
 #     json.dump(campaign_json, f, ensure_ascii=False, indent=4)
+
+# To load the campaign and update it
+
+# def log_transform(x):
+#     return np.log1p(x)
+
+# with open('AAV9_AAVA3_campaign.json', 'r') as f:
+#     campaign_json = json.load(f)
 
 # new_add = pd.read_csv("process_filecsv")
 # new_add["Total Capsids"] = log_transform(new_add["Total Capsids"])

@@ -134,11 +134,19 @@ campaign = Campaign(searchspace, objective, recommender)
 df = campaign.recommend(batch_size=10)
 
 
-# Other Utils to save the campaign
+# To save the campaign
 
 # campaign_json = campaign.to_json()
 # with open('AAV2_AAVA3_campaign.json', 'w', encoding='utf-8') as f:
 #     json.dump(campaign_json, f, ensure_ascii=False, indent=4)
+
+# To load the campaign and update it
+
+# def log_transform(x):
+#     return np.log1p(x)
+
+# with open('AAV2_AAVA3_campaign.json', 'r') as f:
+#     campaign_json = json.load(f)
 
 # new_add = pd.read_csv("process_filecsv")
 # new_add["Total Capsids"] = log_transform(new_add["Total Capsids"])
