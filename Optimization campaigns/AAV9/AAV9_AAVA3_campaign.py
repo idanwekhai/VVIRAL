@@ -28,26 +28,12 @@ from surrogate_model import gp_model
 
 
 
-target_1 = NumericalTarget(
+target = NumericalTarget(
     name="Total Capsids",
     mode="MAX",
-    bounds=(0,1),
 )
+objective = SingleTargetObjective(target=target)
 
-target_2 = NumericalTarget(
-    name="Purity",
-    mode="MAX",
-    bounds=(0, 1),
-)
-
-targets = [target_1, target_2]
-
-# objective = SingleTargetObjective(target=target)
-objective = DesirabilityObjective(
-    targets=targets,
-    weights=[60, 40], #figure out good weights
-    scalarizer="MEAN",
-)
 parameters = [
     NumericalDiscreteParameter(
         name="Pure",
@@ -148,23 +134,26 @@ campaign = Campaign(searchspace, objective, recommender)
 df = campaign.recommend(batch_size=10)
 
 
-
-
-
-# To save the campaign
+## To save the campaign
 
 # campaign_json = campaign.to_json()
-# with open('AAV9_AAVA3_campaign.json', 'w', encoding='utf-8') as f:
+# with open('AAV9_AAVA3_campaign_yield.json', 'w', encoding='utf-8') as f:
 #     json.dump(campaign_json, f, ensure_ascii=False, indent=4)
 
-# To load the campaign and update it
+## To load the campaign and update it
 
 # def log_transform(x):
 #     return np.log1p(x)
 
-# with open('AAV9_AAVA3_campaign.json', 'r') as f:
+# with open('AAV9_AAVA3_campaign_yield.json', 'r') as f:
 #     campaign_json = json.load(f)
 
-# new_add = pd.read_csv("process_filecsv")
+# new_add = pd.read_csv("campaign_output/process_file.csv")
 # new_add["Total Capsids"] = log_transform(new_add["Total Capsids"])
 # campaign.add_measurements(new_add, numerical_measurements_must_be_within_tolerance = False)
+
+## To get new recommendations.
+# df = campaign.recommend(batch_size=10)
+# df.to_csv("recommendations/new_recommendations.csv", index=False)
+
+## Use previous routine to save the campaign after adding new measurements

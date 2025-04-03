@@ -8,7 +8,7 @@ from sklearn.gaussian_process.kernels import RBF
 from sklearn.gaussian_process.kernels import *
 from baybe.searchspace import SearchSpace
 from baybe.targets import NumericalTarget
-from baybe.objectives import SingleTargetObjective
+from baybe.objectives import SingleTargetObjective, DesirabilityObjective
 from baybe.searchspace import SearchSpace
 
 from baybe.parameters import (
@@ -27,12 +27,12 @@ from baybe import Campaign
 from surrogate_model import gp_model
 
 
+
 target = NumericalTarget(
     name="Total Capsids",
     mode="MAX",
 )
 objective = SingleTargetObjective(target=target)
-
 
 parameters = [
     NumericalDiscreteParameter(
@@ -41,13 +41,11 @@ parameters = [
     ),
     NumericalDiscreteParameter(
         name="Elution pH",
-        # bounds=(5, 9),
-        values = list(np.arange(5, 9.5, 0.5))
+        values = list(np.arange(6, 9, 0.5))
     ),
     NumericalDiscreteParameter(
         name="Wash pH",
-        # bounds=(5, 9),
-        values = list(np.arange(5, 9.5, 0.5))
+        values = list(np.arange(4, 6, 0.5))
     ),
     NumericalDiscreteParameter(
         name="Equilibration pH",
@@ -55,13 +53,11 @@ parameters = [
     ),
     NumericalContinuousParameter(
         name="Elution Conductivity",
-        bounds=(10, 101),
-        # values = np.arange(10, 101, 1)
+        bounds=(0, 20),
     ),
     NumericalDiscreteParameter(
         name="Wash Conductivity",
-        # bounds=(1, 16),
-        values = np.arange(1, 16, 1)
+        values = np.arange(1, 10, 1)
     ),
     NumericalDiscreteParameter(
         name="Equilibration Conductivity",
@@ -73,8 +69,7 @@ parameters = [
     ),
     NumericalContinuousParameter(
         name="Sample Flowrate Elution (cm/h)",
-        bounds=(130, 601),
-        # values = np.arange(10, 101, 1)
+        bounds=(130, 600), 
     ),
     NumericalDiscreteParameter(
         name="Sample Volume",
@@ -82,7 +77,7 @@ parameters = [
     ),
     CategoricalParameter(
         name="serotype",
-        values=['AAV9','AAV2'],
+        values=['AAV5','AAV2'],
         encoding="OHE",  # one-hot encoding of categories
     ),
     CategoricalParameter(
@@ -102,7 +97,7 @@ parameters = [
 searchspace = SearchSpace.from_product(parameters)
 
 # find indices of parameter values that you dont want recommended
-dont_recommend_idxs_1 = searchspace.discrete.exp_rep['serotype'] != 'AAV2'
+dont_recommend_idxs_1 = searchspace.discrete.exp_rep['serotype'] != 'AAV5'
 # restrict recommendations via metadata
 searchspace.discrete.metadata.loc[dont_recommend_idxs_1, 'dont_recommend'] = True
 
@@ -134,20 +129,26 @@ campaign = Campaign(searchspace, objective, recommender)
 df = campaign.recommend(batch_size=10)
 
 
-# To save the campaign
+## To save the campaign
 
 # campaign_json = campaign.to_json()
-# with open('AAV2_AAVA3_campaign.json', 'w', encoding='utf-8') as f:
+# with open('AAV5_AAVA3_campaign_yield.json', 'w', encoding='utf-8') as f:
 #     json.dump(campaign_json, f, ensure_ascii=False, indent=4)
 
-# To load the campaign and update it
+## To load the campaign and update it
 
 # def log_transform(x):
 #     return np.log1p(x)
 
-# with open('AAV2_AAVA3_campaign.json', 'r') as f:
+# with open('AAV5_AAVA3_campaign_yield.json', 'r') as f:
 #     campaign_json = json.load(f)
 
-# new_add = pd.read_csv("process_filecsv")
+# new_add = pd.read_csv("campaign_output/process_file.csv")
 # new_add["Total Capsids"] = log_transform(new_add["Total Capsids"])
 # campaign.add_measurements(new_add, numerical_measurements_must_be_within_tolerance = False)
+
+## To get new recommendations.
+# df = campaign.recommend(batch_size=10)
+# df.to_csv("recommendations/new_recommendations.csv", index=False)
+
+## Use previous routine to save the campaign after adding new measurements
